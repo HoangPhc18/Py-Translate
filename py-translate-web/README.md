@@ -21,7 +21,7 @@ Phiên bản web của ứng dụng Py-Translate, cho phép dịch văn bản gi
 
 ```bash
 # Clone dự án
-git clone https://github.com/yourusername/py-translate-web.git
+git clone https://github.com/HoangPhc/Py-Translate
 
 # Di chuyển vào thư mục dự án
 cd py-translate-web
@@ -72,7 +72,7 @@ vercel
 git init
 git add .
 git commit -m "Initial commit"
-git remote add origin https://github.com/yourusername/py-translate-web.git
+git remote add origin https://github.com/yourusername/Py-Translate.git
 git push -u origin master
 ```
 
