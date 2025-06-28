@@ -1,0 +1,305 @@
+/* Base styles */
+body {
+  margin: 0;
+  font-family: 'Roboto', 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8f9fa;
+}
+
+/* App container */
+.app-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.app-container.fullscreen {
+  max-width: 100%;
+  height: calc(100vh - 100px);
+  padding: 0 20px;
+}
+
+/* Translator card */
+.translator-card {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  margin-bottom: 20px;
+  background-color: #fff;
+  border: none;
+}
+
+/* Language bar */
+.language-bar {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.source-language,
+.target-language {
+  flex: 1;
+}
+
+.language-badge {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 12px;
+  background-color: #f1f3f4 !important;
+  color: #202124 !important;
+  border-radius: 4px;
+  font-family: 'Google Sans', sans-serif;
+}
+
+.swap-btn {
+  margin: 0 15px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #dadce0;
+  background-color: white;
+}
+
+.swap-btn:hover {
+  background-color: #f1f3f4;
+}
+
+.language-selector-btn {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background-color: #f1f3f4;
+  color: #202124;
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+}
+
+.language-dropdown {
+  max-height: 300px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.dropdown-item {
+  font-family: 'Google Sans', sans-serif;
+}
+
+.dropdown-item.active {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+}
+
+/* Translation container */
+.translation-container {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .translation-container {
+    flex-direction: row;
+    height: 300px;
+  }
+}
+
+.input-container,
+.output-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .input-container {
+    border-right: 1px solid #e9ecef;
+  }
+}
+
+/* Textarea styles */
+.translation-textarea {
+  flex: 1;
+  border: none;
+  resize: none;
+  padding: 20px;
+  font-size: 18px;
+  line-height: 1.5;
+  color: #202124;
+  min-height: 150px;
+  width: 100%;
+  outline: none;
+  overflow-y: auto;
+  font-family: 'Roboto', sans-serif;
+}
+
+.translation-textarea:focus {
+  outline: none;
+}
+
+.translation-textarea::placeholder {
+  color: #9aa0a6;
+}
+
+/* Textarea actions */
+.textarea-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 20px;
+  background-color: #fff;
+  border-top: 1px solid #f1f3f4;
+}
+
+.action-btn {
+  margin-left: 10px;
+  border: none;
+  background-color: transparent;
+  color: #5f6368;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.action-btn:hover {
+  background-color: #f1f3f4;
+  color: #202124;
+}
+
+.action-btn:disabled {
+  color: #dadce0;
+  cursor: not-allowed;
+}
+
+/* Tools container */
+.tools-container {
+  display: flex;
+  padding: 15px 20px;
+  border-top: 1px solid #e9ecef;
+  background-color: #f8f9fa;
+}
+
+.tool-btn {
+  margin-right: 15px;
+  border: 1px solid #dadce0;
+  background-color: white;
+  color: #5f6368;
+  padding: 8px 16px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+}
+
+.tool-btn svg {
+  margin-right: 8px;
+}
+
+.tool-btn:hover {
+  background-color: #f1f3f4;
+}
+
+.tool-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Animation for mic button */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.pulsing {
+  animation: pulse 1.5s infinite;
+  color: #d93025;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  margin-top: 20px;
+  color: #5f6368;
+  font-size: 14px;
+  font-family: 'Google Sans', sans-serif;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .translation-textarea {
+    min-height: 120px;
+  }
+  
+  .tools-container {
+    flex-wrap: wrap;
+  }
+  
+  .tool-btn {
+    margin-bottom: 10px;
+  }
+}
+
+/* Navbar customization */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: #5f6368;
+  font-family: 'Google Sans', sans-serif;
+}
+
+.navbar {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Alert styling */
+.alert {
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  font-family: 'Google Sans', sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+} 
