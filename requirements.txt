@@ -1,9 +1,5 @@
 langdetect
 googletrans==4.0.0rc1
 gTTS
-<<<<<<< HEAD
-=======
-#playsound
->>>>>>> ee8238eb6d3b850bce3d1331f346439a9bd5c365
 SpeechRecognition
 pillow
