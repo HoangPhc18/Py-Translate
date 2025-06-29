@@ -1,10 +1,9 @@
 import axios from 'axios';
 import { LANGUAGES } from '../types/languages';
 
-// Sử dụng LibreTranslate API - API dịch mã nguồn mở với độ chính xác cao hơn
-// Có thể sử dụng public API hoặc tự host
-const LIBRE_TRANSLATE_API = 'https://libretranslate.de/translate';
-const MYMEMORY_API = 'https://api.mymemory.translated.net/get';
+// Use our serverless API endpoints
+const API_TRANSLATE = '/api/translate';
+const API_DETECT = '/api/detect';
 
 // Định nghĩa kiểu dữ liệu cho các điều chỉnh
 interface Corrections {
@@ -35,8 +34,23 @@ const COMMON_CORRECTIONS: Record<string, Record<string, Corrections>> = {
   }
 };
 
-// Hàm cải tiến để phát hiện ngôn ngữ dựa trên các ký tự đặc trưng
-export const detectLanguage = (text: string): string => {
+// Hàm phát hiện ngôn ngữ sử dụng API serverless
+export const detectLanguage = async (text: string): Promise<string> => {
+  if (!text.trim()) return 'en';
+  
+  try {
+    const response = await axios.post(API_DETECT, { text });
+    return response.data.detectedLanguage || 'en';
+  } catch (error) {
+    console.error('Lỗi khi phát hiện ngôn ngữ:', error);
+    
+    // Fallback to client-side detection if API fails
+    return clientSideDetectLanguage(text);
+  }
+};
+
+// Hàm phát hiện ngôn ngữ phía client (dự phòng)
+const clientSideDetectLanguage = (text: string): string => {
   // Chuẩn hóa văn bản trước khi phân tích
   const normalizedText = text.trim().toLowerCase();
   
@@ -169,149 +183,68 @@ const applyCommonCorrections = (
   return null;
 };
 
-// Chuyển đổi mã ngôn ngữ từ định dạng của chúng ta sang định dạng của LibreTranslate
-const convertToLibreTranslateCode = (langCode: string): string => {
-  const codeMap: Record<string, string> = {
-    'zh-cn': 'zh',
-    'ja': 'ja',
-    'ko': 'ko',
-    'en': 'en',
-    'vi': 'vi',
-    'fr': 'fr',
-    'de': 'de',
-    'it': 'it',
-    'es': 'es',
-    'pt': 'pt'
-  };
-  
-  return codeMap[langCode] || langCode;
-};
-
-// Hàm dịch sử dụng LibreTranslate API
-const translateWithLibreTranslate = async (
-  text: string,
-  sourceLang: string,
-  targetLang: string
+// Hàm dịch sử dụng API serverless
+export const translateText = async (
+  text: string, 
+  targetLanguage: string
 ): Promise<string> => {
+  if (!text.trim()) return '';
+  
   try {
-    // Chuyển đổi mã ngôn ngữ sang định dạng của LibreTranslate
-    const sourceCode = convertToLibreTranslateCode(sourceLang);
-    const targetCode = convertToLibreTranslateCode(targetLang);
+    // Kiểm tra các điều chỉnh thủ công trước
+    const sourceLang = await detectLanguage(text);
+    const correction = applyCommonCorrections(text, sourceLang, targetLanguage);
     
-    const response = await axios.post(LIBRE_TRANSLATE_API, {
-      q: text,
-      source: sourceCode,
-      target: targetCode,
-      format: 'text'
+    if (correction) {
+      return correction;
+    }
+    
+    // Nếu không có điều chỉnh thủ công, sử dụng API dịch
+    const response = await axios.post(API_TRANSLATE, {
+      text,
+      sourceLang,
+      targetLang: targetLanguage
     });
     
     if (response.data && response.data.translatedText) {
       return response.data.translatedText;
     } else {
-      throw new Error('Không nhận được kết quả dịch từ LibreTranslate');
+      throw new Error('Không nhận được kết quả dịch');
     }
   } catch (error) {
-    console.error('Lỗi khi sử dụng LibreTranslate:', error);
+    console.error('Lỗi khi dịch văn bản:', error);
     throw error;
   }
 };
 
-// Hàm dịch sử dụng MyMemory API (dự phòng)
-const translateWithMyMemory = async (
-  text: string,
-  sourceLang: string,
-  targetLang: string
-): Promise<string> => {
-  try {
-    const response = await axios.get(MYMEMORY_API, {
-      params: {
-        q: text,
-        langpair: `${sourceLang}|${targetLang}`,
-        de: 'a@b.c' // Email giả để sử dụng API miễn phí
-      }
-    });
-
-    if (response.data && response.data.responseData && response.data.responseData.translatedText) {
-      return response.data.responseData.translatedText;
-    } else if (response.data && response.data.responseDetails) {
-      throw new Error(`Lỗi dịch: ${response.data.responseDetails}`);
-    } else {
-      throw new Error('Không nhận được kết quả dịch từ MyMemory');
-    }
-  } catch (error) {
-    console.error('Lỗi khi sử dụng MyMemory:', error);
-    throw error;
-  }
-};
-
-export const translateText = async (
-  text: string, 
-  targetLanguage: string
-): Promise<string> => {
-  try {
-    // Lấy mã ngôn ngữ từ tên ngôn ngữ
-    const targetLangCode = LANGUAGES[targetLanguage];
-    
-    // Phát hiện ngôn ngữ nguồn từ văn bản
-    const sourceLangCode = detectLanguage(text);
-    
-    // Nếu ngôn ngữ nguồn và đích giống nhau, trả về nguyên văn
-    if (sourceLangCode === targetLangCode) {
-      return text;
-    }
-    
-    // Kiểm tra và áp dụng các điều chỉnh cho các cụm từ thường dịch sai
-    const correctedText = applyCommonCorrections(text, sourceLangCode, targetLangCode);
-    if (correctedText !== null) {
-      return correctedText;
-    }
-    
-    // Thử dịch với LibreTranslate trước
-    try {
-      return await translateWithLibreTranslate(text, sourceLangCode, targetLangCode);
-    } catch (libreError) {
-      console.log('Dự phòng sang MyMemory do lỗi LibreTranslate:', libreError);
-      // Nếu LibreTranslate thất bại, sử dụng MyMemory làm dự phòng
-      return await translateWithMyMemory(text, sourceLangCode, targetLangCode);
-    }
-  } catch (error) {
-    console.error('Lỗi dịch:', error);
-    throw error;
-  }
-};
-
-// Phát âm văn bản sử dụng Web Speech API
+// Hàm phát âm văn bản (chỉ hoạt động trên trình duyệt)
 export const speakText = (text: string, langCode: string): void => {
-  if (!text) return;
+  if (!text || !window.speechSynthesis) return;
   
-  if ('speechSynthesis' in window) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = langCode;
-    window.speechSynthesis.speak(utterance);
-  } else {
-    console.error('Trình duyệt không hỗ trợ Speech Synthesis');
-  }
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = langCode;
+  window.speechSynthesis.speak(utterance);
 };
 
-// Nhận dạng giọng nói sử dụng Web Speech API
+// Hàm nhận dạng giọng nói (chỉ hoạt động trên trình duyệt)
 export const recognizeSpeech = (
   language: string, 
   onResult: (text: string) => void, 
   onError: (error: string) => void
 ): void => {
-  if (!('webkitSpeechRecognition' in window)) {
-    onError('Trình duyệt không hỗ trợ Speech Recognition');
+  // Kiểm tra hỗ trợ Web Speech API
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    onError('Trình duyệt của bạn không hỗ trợ nhận dạng giọng nói.');
     return;
   }
+
+  // @ts-ignore - Web Speech API không có trong TypeScript tiêu chuẩn
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
   
-  // @ts-ignore - webkitSpeechRecognition không có trong TypeScript mặc định
-  const recognition = new window.webkitSpeechRecognition();
+  recognition.lang = language;
   recognition.continuous = false;
   recognition.interimResults = false;
-  
-  // Lấy mã ngôn ngữ từ tên ngôn ngữ
-  const langCode = LANGUAGES[language] || 'vi-VN';
-  recognition.lang = langCode;
   
   recognition.onresult = (event: any) => {
     const transcript = event.results[0][0].transcript;
@@ -319,7 +252,7 @@ export const recognizeSpeech = (
   };
   
   recognition.onerror = (event: any) => {
-    onError(`Lỗi nhận dạng giọng nói: ${event.error}`);
+    onError(`Lỗi nhận dạng: ${event.error}`);
   };
   
   recognition.start();
