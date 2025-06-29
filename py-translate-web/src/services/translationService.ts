@@ -48,39 +48,144 @@ export const detectLanguage = async (text: string): Promise<string> => {
   }
 };
 
-// Hàm phát hiện ngôn ngữ phía client (dự phòng)
+// Cải tiến hàm phát hiện ngôn ngữ phía client
 const clientSideDetectLanguage = (text: string): string => {
   // Chuẩn hóa văn bản trước khi phân tích
   const normalizedText = text.trim().toLowerCase();
   
   if (!normalizedText) return 'en';
   
+  // Từ vựng phổ biến cho các ngôn ngữ
+  const languageWords: Record<string, string[]> = {
+    'vi': ['và', 'hoặc', 'không', 'là', 'có', 'được', 'trong', 'của', 'cho', 'với', 'tôi', 'bạn', 'chúng', 'họ', 'những', 'các'],
+    'en': ['the', 'and', 'or', 'not', 'is', 'are', 'in', 'of', 'to', 'for', 'with', 'i', 'you', 'we', 'they', 'this', 'that'],
+    'fr': ['le', 'la', 'les', 'et', 'ou', 'ne', 'pas', 'est', 'sont', 'dans', 'de', 'à', 'pour', 'avec', 'je', 'tu', 'nous'],
+    'de': ['der', 'die', 'das', 'und', 'oder', 'nicht', 'ist', 'sind', 'in', 'von', 'zu', 'für', 'mit', 'ich', 'du', 'wir'],
+    'es': ['el', 'la', 'los', 'las', 'y', 'o', 'no', 'es', 'son', 'en', 'de', 'a', 'para', 'con', 'yo', 'tú', 'nosotros'],
+    'it': ['il', 'la', 'i', 'le', 'e', 'o', 'non', 'è', 'sono', 'in', 'di', 'a', 'per', 'con', 'io', 'tu', 'noi'],
+    'pt': ['o', 'a', 'os', 'as', 'e', 'ou', 'não', 'é', 'são', 'em', 'de', 'para', 'com', 'eu', 'tu', 'nós', 'eles']
+  };
+  
+  // Tính điểm cho mỗi ngôn ngữ
+  const scores: Record<string, number> = {
+    'vi': 0, 'en': 0, 'ja': 0, 'ko': 0, 'zh-cn': 0, 'fr': 0, 'de': 0, 'es': 0, 'it': 0, 'pt': 0
+  };
+  
+  // Tách văn bản thành các từ
+  const words = normalizedText.split(/\s+/);
+  
+  // Kiểm tra từng từ có trong danh sách từ vựng của ngôn ngữ nào
+  for (const word of words) {
+    for (const [lang, wordList] of Object.entries(languageWords)) {
+      if (wordList.includes(word)) {
+        scores[lang] += 3; // Tăng điểm cho ngôn ngữ tương ứng
+      }
+    }
+  }
+  
   // Kiểm tra các ký tự tiếng Việt đặc trưng
   const vietnamesePattern = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/gi;
-  if (vietnamesePattern.test(normalizedText)) {
-    return 'vi';
+  const viMatches = normalizedText.match(vietnamesePattern);
+  if (viMatches) {
+    scores['vi'] += viMatches.length * 5;
   }
   
   // Kiểm tra các ký tự tiếng Nhật
-  const japanesePattern = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/g;
-  if (japanesePattern.test(normalizedText)) {
-    return 'ja';
-  }
+  const hiraganaPattern = /[\u3040-\u309F]/g;
+  const katakanaPattern = /[\u30A0-\u30FF]/g;
+  const kanjiPattern = /[\u4E00-\u9FAF]/g;
+  
+  const hiraganaMatches = normalizedText.match(hiraganaPattern);
+  const katakanaMatches = normalizedText.match(katakanaPattern);
+  const kanjiMatches = normalizedText.match(kanjiPattern);
+  
+  if (hiraganaMatches) scores['ja'] += hiraganaMatches.length * 5;
+  if (katakanaMatches) scores['ja'] += katakanaMatches.length * 5;
+  if (kanjiMatches) scores['ja'] += kanjiMatches.length * 3;
   
   // Kiểm tra các ký tự tiếng Hàn
-  const koreanPattern = /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\uffa0-\uffdc]/g;
-  if (koreanPattern.test(normalizedText)) {
-    return 'ko';
+  const hangulPattern = /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF]/g;
+  const koMatches = normalizedText.match(hangulPattern);
+  if (koMatches) {
+    scores['ko'] += koMatches.length * 5;
   }
   
-  // Kiểm tra các ký tự tiếng Trung
-  const chinesePattern = /[\u4e00-\u9fff\uf900-\ufaff]/g;
-  if (chinesePattern.test(normalizedText)) {
-    return 'zh-cn';
+  // Kiểm tra các ký tự tiếng Trung (nếu không phải tiếng Nhật)
+  const chinesePattern = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/g;
+  const zhMatches = normalizedText.match(chinesePattern);
+  if (zhMatches && scores['ja'] < 10) {
+    scores['zh-cn'] += zhMatches.length * 5;
   }
   
-  // Mặc định là tiếng Anh
-  return 'en';
+  // Kiểm tra các ký tự đặc trưng cho các ngôn ngữ châu Âu
+  if (scores['vi'] < 10 && scores['ja'] < 10 && scores['ko'] < 10 && scores['zh-cn'] < 10) {
+    const frenchPattern = /[éèêëàâäôöùûüÿçœæ]/g;
+    const germanPattern = /[äöüßẞ]/g;
+    const spanishPattern = /[áéíóúüñ¿¡]/g;
+    const italianPattern = /[àèéìíîòóùú]/g;
+    const portuguesePattern = /[áàâãéêíóôõúç]/g;
+    
+    const frMatches = normalizedText.match(frenchPattern);
+    const deMatches = normalizedText.match(germanPattern);
+    const esMatches = normalizedText.match(spanishPattern);
+    const itMatches = normalizedText.match(italianPattern);
+    const ptMatches = normalizedText.match(portuguesePattern);
+    
+    if (frMatches) scores['fr'] += frMatches.length * 5;
+    if (deMatches) scores['de'] += deMatches.length * 5;
+    if (esMatches) scores['es'] += esMatches.length * 5;
+    if (itMatches) scores['it'] += itMatches.length * 5;
+    if (ptMatches) scores['pt'] += ptMatches.length * 5;
+  }
+  
+  // Kiểm tra các cụm từ phổ biến
+  const commonPhrases: Record<string, string[]> = {
+    'vi': ['xin chào', 'cảm ơn', 'tạm biệt', 'làm ơn', 'xin lỗi'],
+    'en': ['hello', 'thank you', 'goodbye', 'please', 'sorry'],
+    'fr': ['bonjour', 'merci', 'au revoir', 's\'il vous plaît', 'pardon'],
+    'de': ['hallo', 'danke', 'auf wiedersehen', 'bitte', 'entschuldigung'],
+    'es': ['hola', 'gracias', 'adiós', 'por favor', 'lo siento'],
+    'ja': ['こんにちは', 'ありがとう', 'さようなら', 'お願いします', 'すみません'],
+    'ko': ['안녕하세요', '감사합니다', '안녕히 가세요', '제발', '죄송합니다'],
+    'zh-cn': ['你好', '谢谢', '再见', '请', '对不起'],
+    'it': ['ciao', 'grazie', 'arrivederci', 'per favore', 'scusa'],
+    'pt': ['olá', 'obrigado', 'adeus', 'por favor', 'desculpe']
+  };
+  
+  for (const [lang, phrases] of Object.entries(commonPhrases)) {
+    for (const phrase of phrases) {
+      if (normalizedText.includes(phrase)) {
+        scores[lang] += 10; // Tăng điểm mạnh cho các cụm từ đặc trưng
+      }
+    }
+  }
+  
+  // Nếu không có tín hiệu rõ ràng, kiểm tra tỷ lệ ký tự Latin
+  if (Object.values(scores).every(score => score < 5)) {
+    const latinPattern = /[a-z]/g;
+    const latinMatches = normalizedText.match(latinPattern);
+    if (latinMatches) {
+      scores['en'] += latinMatches.length * 0.5; // Ưu tiên tiếng Anh cho văn bản Latin
+    }
+  }
+  
+  // Tìm ngôn ngữ có điểm cao nhất
+  let highestScore = 0;
+  let detectedLanguage = 'en'; // Mặc định là tiếng Anh
+  
+  for (const [lang, score] of Object.entries(scores)) {
+    if (score > highestScore) {
+      highestScore = score;
+      detectedLanguage = lang;
+    }
+  }
+  
+  // Nếu điểm cao nhất vẫn thấp, mặc định là tiếng Anh
+  if (highestScore < 3) {
+    detectedLanguage = 'en';
+  }
+  
+  return detectedLanguage;
 };
 
 // Hàm kiểm tra và áp dụng các điều chỉnh cho các cụm từ thường dịch sai

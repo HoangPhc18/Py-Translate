@@ -18,6 +18,7 @@ import {
 import { translateText, speakText, recognizeSpeech, detectLanguage } from './services/translationService';
 import { LANGUAGES } from './types/languages';
 import Tesseract from 'tesseract.js';
+import axios from 'axios';
 import './App.css';
 
 const App: React.FC = () => {
@@ -32,6 +33,8 @@ const App: React.FC = () => {
   const [detectedLanguage, setDetectedLanguage] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
+  const [detectionMethod, setDetectionMethod] = useState<string | null>(null);
+  const [detectionConfidence, setDetectionConfidence] = useState<number | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -52,8 +55,21 @@ const App: React.FC = () => {
       setError(null);
       
       // Phát hiện ngôn ngữ đầu vào
-      const detectedLang = await detectLanguage(inputText);
-      setDetectedLanguage(detectedLang);
+      try {
+        const response = await axios.post('/api/detect', { text: inputText });
+        if (response.data) {
+          setDetectedLanguage(response.data.detectedLanguage || 'en');
+          setDetectionMethod(response.data.method || null);
+          setDetectionConfidence(response.data.confidence || null);
+        }
+      } catch (detectError) {
+        console.error('Lỗi phát hiện ngôn ngữ:', detectError);
+        // Fallback to client-side detection
+        const detectedLang = await detectLanguage(inputText);
+        setDetectedLanguage(detectedLang);
+        setDetectionMethod('client');
+        setDetectionConfidence(0.5);
+      }
       
       const translatedText = await translateText(inputText, selectedLanguage);
       setOutputText(translatedText);
@@ -84,6 +100,8 @@ const App: React.FC = () => {
     if (newText.trim() === '') {
       setOutputText('');
       setDetectedLanguage('');
+      setDetectionMethod(null);
+      setDetectionConfidence(null);
       return;
     }
     
@@ -96,8 +114,22 @@ const App: React.FC = () => {
       // Đặt timer mới để dịch sau 800ms kể từ lần nhập cuối cùng
       debounceTimerRef.current = setTimeout(async () => {
         // Phát hiện ngôn ngữ và dịch
-        const detectedLang = await detectLanguage(newText);
-        setDetectedLanguage(detectedLang);
+        try {
+          const response = await axios.post('/api/detect', { text: newText });
+          if (response.data) {
+            setDetectedLanguage(response.data.detectedLanguage || 'en');
+            setDetectionMethod(response.data.method || null);
+            setDetectionConfidence(response.data.confidence || null);
+          }
+        } catch (detectError) {
+          console.error('Lỗi phát hiện ngôn ngữ:', detectError);
+          // Fallback to client-side detection
+          const detectedLang = await detectLanguage(newText);
+          setDetectedLanguage(detectedLang);
+          setDetectionMethod('client');
+          setDetectionConfidence(0.5);
+        }
+        
         handleTranslate();
       }, 800);
     }
@@ -258,6 +290,41 @@ const App: React.FC = () => {
     adjustHeight(outputTextareaRef.current);
   }, [inputText, outputText]);
 
+  // Hiển thị thông tin về ngôn ngữ đã phát hiện
+  const renderDetectionInfo = () => {
+    if (!detectedLanguage) return null;
+    
+    const langName = getLanguageName(detectedLanguage);
+    let confidenceText = '';
+    
+    if (detectionConfidence) {
+      const confidencePercent = Math.round(detectionConfidence * 100);
+      confidenceText = ` (${confidencePercent}%)`;
+    }
+    
+    let methodText = '';
+    if (detectionMethod) {
+      const methodMap: Record<string, string> = {
+        'api': 'API',
+        'local': 'Local',
+        'combined': 'Combined',
+        'local-fallback': 'Local',
+        'client': 'Client'
+      };
+      methodText = methodMap[detectionMethod] || detectionMethod;
+    }
+    
+    return (
+      <div className="detection-info">
+        <small>
+          {t('detectedLanguage')}: <strong>{langName}</strong>
+          {confidenceText && <span className="text-muted">{confidenceText}</span>}
+          {methodText && <span className="text-muted"> · {methodText}</span>}
+        </small>
+      </div>
+    );
+  };
+
   return (
     <>
       <Navbar bg="light" expand="lg" className="mb-3">
@@ -301,6 +368,7 @@ const App: React.FC = () => {
                 <Badge bg="info" className="language-badge">
                   {detectedLanguage ? getLanguageName(detectedLanguage) : t('detectLanguage')}
                 </Badge>
+                {renderDetectionInfo()}
               </div>
               
               <Button 
