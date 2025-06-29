@@ -55,93 +55,28 @@ const clientSideDetectLanguage = (text: string): string => {
   
   if (!normalizedText) return 'en';
   
-  // Tính điểm cho mỗi ngôn ngữ dựa trên số lượng ký tự đặc trưng
-  let viScore = 0;
-  let jaScore = 0;
-  let koScore = 0;
-  let zhScore = 0;
-  let enScore = 0;
-  
-  // Các từ tiếng Việt phổ biến để kiểm tra
-  const vietnameseWords = ['xin', 'chào', 'cảm', 'ơn', 'không', 'có', 'tôi', 'bạn', 'và', 'hoặc', 'là'];
-  
-  // Kiểm tra nếu văn bản chứa các từ tiếng Việt phổ biến
-  for (const word of vietnameseWords) {
-    if (normalizedText.includes(word)) {
-      viScore += 5;
-    }
-  }
-  
   // Kiểm tra các ký tự tiếng Việt đặc trưng
   const vietnamesePattern = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/gi;
-  const viMatches = normalizedText.match(vietnamesePattern);
-  if (viMatches) {
-    viScore += viMatches.length * 10;
+  if (vietnamesePattern.test(normalizedText)) {
+    return 'vi';
   }
   
   // Kiểm tra các ký tự tiếng Nhật
   const japanesePattern = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/g;
-  const jaMatches = normalizedText.match(japanesePattern);
-  if (jaMatches) {
-    jaScore += jaMatches.length * 10;
+  if (japanesePattern.test(normalizedText)) {
+    return 'ja';
   }
   
   // Kiểm tra các ký tự tiếng Hàn
   const koreanPattern = /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\uffa0-\uffdc]/g;
-  const koMatches = normalizedText.match(koreanPattern);
-  if (koMatches) {
-    koScore += koMatches.length * 10;
+  if (koreanPattern.test(normalizedText)) {
+    return 'ko';
   }
   
   // Kiểm tra các ký tự tiếng Trung
   const chinesePattern = /[\u4e00-\u9fff\uf900-\ufaff]/g;
-  const zhMatches = normalizedText.match(chinesePattern);
-  if (zhMatches) {
-    zhScore += zhMatches.length * 10;
-  }
-  
-  // Kiểm tra các từ tiếng Anh phổ biến
-  const englishWords = ['the', 'is', 'are', 'and', 'or', 'but', 'if', 'that', 'this', 'these', 'those', 'hello', 'hi'];
-  for (const word of englishWords) {
-    if (normalizedText.includes(word)) {
-      enScore += 5;
-    }
-  }
-  
-  // Kiểm tra tỷ lệ ký tự Latin (tiếng Anh)
-  const latinPattern = /[a-z]/g;
-  const latinMatches = normalizedText.match(latinPattern);
-  if (latinMatches) {
-    // Nếu có nhiều ký tự Latin nhưng không có dấu tiếng Việt, có thể là tiếng Anh
-    if (latinMatches.length > 3 && !viMatches) {
-      enScore += latinMatches.length;
-    }
-  }
-  
-  // Xác định ngôn ngữ dựa trên điểm cao nhất
-  const scores = [
-    { lang: 'vi', score: viScore },
-    { lang: 'ja', score: jaScore },
-    { lang: 'ko', score: koScore },
-    { lang: 'zh-cn', score: zhScore },
-    { lang: 'en', score: enScore }
-  ];
-  
-  // Sắp xếp theo điểm giảm dần
-  scores.sort((a, b) => b.score - a.score);
-  
-  // Kiểm tra các trường hợp đặc biệt
-  if (normalizedText === 'xin chào' || normalizedText.startsWith('xin chào')) {
-    return 'vi';
-  }
-  
-  if (normalizedText === 'hello' || normalizedText === 'hi' || normalizedText.startsWith('hello') || normalizedText.startsWith('hi ')) {
-    return 'en';
-  }
-  
-  // Nếu điểm cao nhất lớn hơn 0, trả về ngôn ngữ đó
-  if (scores[0].score > 0) {
-    return scores[0].lang;
+  if (chinesePattern.test(normalizedText)) {
+    return 'zh-cn';
   }
   
   // Mặc định là tiếng Anh
@@ -199,20 +134,33 @@ export const translateText = async (
     }
     
     // Nếu không có điều chỉnh thủ công, sử dụng API dịch
-    const response = await axios.post(API_TRANSLATE, {
-      text,
-      sourceLang,
-      targetLang: targetLanguage
-    });
-    
-    if (response.data && response.data.translatedText) {
-      return response.data.translatedText;
-    } else {
-      throw new Error('Không nhận được kết quả dịch');
+    try {
+      const response = await axios.post(API_TRANSLATE, {
+        text,
+        sourceLang,
+        targetLang: targetLanguage
+      });
+      
+      if (response.data && response.data.translatedText) {
+        return response.data.translatedText;
+      } else {
+        throw new Error('Không nhận được kết quả dịch');
+      }
+    } catch (apiError) {
+      console.error('Lỗi khi gọi API dịch:', apiError);
+      
+      // Nếu API lỗi, thử dùng điều chỉnh thủ công một lần nữa nhưng với yêu cầu thấp hơn
+      const fallbackCorrection = applyCommonCorrections(text.toLowerCase(), sourceLang, targetLanguage);
+      if (fallbackCorrection) {
+        return fallbackCorrection;
+      }
+      
+      // Nếu không có điều chỉnh nào phù hợp, trả về văn bản gốc
+      return `[${text}]`;
     }
   } catch (error) {
     console.error('Lỗi khi dịch văn bản:', error);
-    throw error;
+    return `[${text}]`;
   }
 };
 
