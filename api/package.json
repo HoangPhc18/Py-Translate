@@ -1,0 +1,9 @@
+{
+  "name": "py-translate-api",
+  "version": "1.0.0",
+  "description": "API functions for Py-Translate",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^1.4.0"
+  }
+} 

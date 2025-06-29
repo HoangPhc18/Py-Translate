@@ -3,7 +3,7 @@
   "buildCommand": "cd py-translate-web && npm install && npm run build",
   "outputDirectory": "py-translate-web/build",
   "functions": {
-    "py-translate-web/api/*.js": {
+    "api/*.js": {
       "memory": 1024,
       "maxDuration": 10
     }
@@ -11,7 +11,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/py-translate-web/api/$1"
+      "dest": "/api/$1"
     },
     {
       "src": "/static/(.*)",
