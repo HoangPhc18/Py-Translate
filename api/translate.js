@@ -22,6 +22,31 @@ const convertToLibreTranslateCode = (langCode) => {
   return codeMap[langCode] || langCode;
 };
 
+// Convert language name to ISO code for MyMemory API
+const getLanguageCode = (language) => {
+  // Map from language names to ISO codes
+  const languageMap = {
+    'Tiếng Anh': 'en',
+    'Tiếng Việt': 'vi',
+    'Tiếng Hàn': 'ko',
+    'Tiếng Nhật': 'ja',
+    'Tiếng Trung': 'zh-CN',
+    'Tiếng Pháp': 'fr',
+    'Tiếng Đức': 'de',
+    'Tiếng Ý': 'it',
+    'Tiếng Tây Ban Nha': 'es',
+    'Tiếng Bồ Đào Nha': 'pt'
+  };
+
+  // If it's already a language code, return it
+  if (/^[a-z]{2}(-[A-Z]{2})?$/.test(language)) {
+    return language;
+  }
+
+  // Otherwise look up the code from the language name
+  return languageMap[language] || 'en';
+};
+
 // Simple dictionary for common translations as fallback
 const commonTranslations = {
   'en': {
@@ -100,11 +125,15 @@ const commonTranslations = {
 const translateWithDictionary = (text, sourceLang, targetLang) => {
   const lowerText = text.trim().toLowerCase();
   
+  // Convert language names to codes if needed
+  const sourceCode = getLanguageCode(sourceLang).toLowerCase();
+  const targetCode = getLanguageCode(targetLang).toLowerCase();
+  
   // Check if we have translations for this source language
-  if (commonTranslations[sourceLang] && commonTranslations[sourceLang][lowerText]) {
+  if (commonTranslations[sourceCode] && commonTranslations[sourceCode][lowerText]) {
     // Check if we have a translation for the target language
-    if (commonTranslations[sourceLang][lowerText][targetLang]) {
-      return commonTranslations[sourceLang][lowerText][targetLang];
+    if (commonTranslations[sourceCode][lowerText][targetCode]) {
+      return commonTranslations[sourceCode][lowerText][targetCode];
     }
   }
   
@@ -139,13 +168,19 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
+    // Convert language names to ISO codes
+    const sourceCode = getLanguageCode(sourceLang);
+    const targetCode = getLanguageCode(targetLang);
+
+    console.log(`Translating from ${sourceCode} to ${targetCode}`);
+
     // If source and target languages are the same, return the original text
-    if (sourceLang === targetLang) {
+    if (sourceCode === targetCode) {
       return res.status(200).json({ translatedText: text });
     }
 
     // Try to use dictionary translation first
-    const dictionaryTranslation = translateWithDictionary(text, sourceLang, targetLang);
+    const dictionaryTranslation = translateWithDictionary(text, sourceCode, targetCode);
     if (dictionaryTranslation) {
       return res.status(200).json({ 
         translatedText: dictionaryTranslation,
@@ -153,23 +188,23 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Convert language codes
-    const sourceCode = sourceLang ? convertToLibreTranslateCode(sourceLang) : 'auto';
-    const targetCode = convertToLibreTranslateCode(targetLang);
+    // Convert language codes for LibreTranslate
+    const libreSourceCode = convertToLibreTranslateCode(sourceCode);
+    const libreTargetCode = convertToLibreTranslateCode(targetCode);
 
     try {
       // Try LibreTranslate API
       const response = await axios.post(LIBRE_TRANSLATE_API, {
         q: text,
-        source: sourceCode,
-        target: targetCode,
+        source: libreSourceCode,
+        target: libreTargetCode,
         format: 'text'
       });
 
       if (response.data && response.data.translatedText) {
         return res.status(200).json({ 
           translatedText: response.data.translatedText,
-          detectedLanguage: response.data.detectedLanguage?.language || sourceLang,
+          detectedLanguage: response.data.detectedLanguage?.language || sourceCode,
           method: 'libretranslate'
         });
       } else {
@@ -180,10 +215,17 @@ module.exports = async (req, res) => {
       
       // Fallback to MyMemory API
       try {
+        // Ensure language codes are in the correct format for MyMemory
+        const myMemorySourceCode = sourceCode.toLowerCase();
+        const myMemoryTargetCode = targetCode.toLowerCase();
+        
+        const langPair = `${myMemorySourceCode}|${myMemoryTargetCode}`;
+        console.log(`Using MyMemory with langpair=${langPair}`);
+        
         const response = await axios.get(MYMEMORY_API, {
           params: {
             q: text,
-            langpair: `${sourceLang}|${targetLang}`,
+            langpair: langPair,
             de: 'a@b.c' // Email placeholder for API usage
           }
         });
@@ -193,6 +235,23 @@ module.exports = async (req, res) => {
             translatedText: response.data.responseData.translatedText,
             method: 'mymemory'
           });
+        } else if (response.data && response.data.responseStatus && response.data.responseStatus === 200) {
+          // Sometimes MyMemory returns success but with matches instead of direct translation
+          if (response.data.matches && response.data.matches.length > 0) {
+            const bestMatch = response.data.matches.reduce((best, match) => {
+              return (match.quality > best.quality) ? match : best;
+            }, { quality: 0, translation: '' });
+            
+            if (bestMatch.translation) {
+              return res.status(200).json({ 
+                translatedText: bestMatch.translation,
+                method: 'mymemory-match'
+              });
+            }
+          }
+          throw new Error('No suitable translation found in MyMemory matches');
+        } else if (response.data && response.data.responseDetails) {
+          throw new Error(`MyMemory error: ${response.data.responseDetails}`);
         } else {
           throw new Error('No translation received from MyMemory');
         }

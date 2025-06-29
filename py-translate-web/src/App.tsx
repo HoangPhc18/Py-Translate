@@ -210,10 +210,10 @@ const App: React.FC = () => {
     // Đảo ngược object LANGUAGES để lấy tên từ mã
     const langNames: Record<string, string> = {};
     Object.entries(LANGUAGES).forEach(([name, code]) => {
-      langNames[code] = name;
+      langNames[code.toLowerCase()] = name;
     });
     
-    return langNames[langCode] || langCode;
+    return langNames[langCode.toLowerCase()] || langCode;
   };
 
   // Xử lý sao chép văn bản
