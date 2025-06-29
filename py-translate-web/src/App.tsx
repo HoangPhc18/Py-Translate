@@ -53,7 +53,7 @@ const App: React.FC = () => {
       setError(null);
       
       // Phát hiện ngôn ngữ đầu vào
-      const detectedLang = detectLanguage(inputText);
+      const detectedLang = await detectLanguage(inputText);
       setDetectedLanguage(detectedLang);
       
       const translatedText = await translateText(inputText, selectedLanguage);
@@ -95,9 +95,9 @@ const App: React.FC = () => {
       }
       
       // Đặt timer mới để dịch sau 800ms kể từ lần nhập cuối cùng
-      debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = setTimeout(async () => {
         // Phát hiện ngôn ngữ và dịch
-        const detectedLang = detectLanguage(newText);
+        const detectedLang = await detectLanguage(newText);
         setDetectedLanguage(detectedLang);
         handleTranslate();
       }, 800);
