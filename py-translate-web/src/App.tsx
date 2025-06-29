@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Spinner, Alert, Badge, Card, Navbar, Nav, Dropdown } from 'react-bootstrap';
+import { Container, Form, Button, Alert, Badge, Card, Navbar, Nav, Dropdown } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 import { 
   FiMic, 
@@ -15,7 +15,6 @@ import {
   FiX,
   FiCheck
 } from 'react-icons/fi';
-import LanguageSelector from './components/LanguageSelector';
 import { translateText, speakText, recognizeSpeech, detectLanguage } from './services/translationService';
 import { LANGUAGES } from './types/languages';
 import Tesseract from 'tesseract.js';

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { LANGUAGES } from '../types/languages';
 
 // Use our serverless API endpoints
 const API_TRANSLATE = '/api/translate';
